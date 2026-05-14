@@ -30,11 +30,21 @@ class MimoASRModel:
     def _load_model(self) -> Any:
         try:
             from src.mimo_audio.mimo_audio import MimoAudio
+        except ModuleNotFoundError as exc:
+            if exc.name == "src":
+                raise RuntimeError(
+                    "MiMo official source code is not available. Install the XiaomiMiMo/MiMo-V2.5-ASR "
+                    "repository in the image, or mount it and set MIMO_SOURCE_PATH to the directory that "
+                    "contains the src/ package."
+                ) from exc
+            raise RuntimeError(
+                f"MiMo official source code was found, but dependency '{exc.name}' is missing. "
+                "Install the dependency in the image and rebuild."
+            ) from exc
         except ImportError as exc:
             raise RuntimeError(
-                "MiMo official source code is not available. Install the XiaomiMiMo/MiMo-V2.5-ASR "
-                "repository in the image, or mount it and set MIMO_SOURCE_PATH to the directory that "
-                "contains the src/ package."
+                f"Failed to import MiMo official source code: {exc}. Check that all MiMo runtime "
+                "dependencies are installed in the image."
             ) from exc
 
         try:

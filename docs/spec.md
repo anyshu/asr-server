@@ -209,7 +209,8 @@ docker run --gpus '"device=3"' -d \
 - 镜像内需要包含官方 MiMo 源码，或挂载源码目录并通过 `MIMO_SOURCE_PATH` 指向包含 `src/` 的路径。
 - 运行时需要同时提供 MiMo-V2.5-ASR 权重和 MiMo-Audio-Tokenizer。
 - 上传文件会临时写入 `/tmp/mimo_asr`，请求结束后删除。
-- 如果官方 MiMo 代码有额外依赖，需要同步补充到 `requirements.txt`。
+- Dockerfile 会单独安装 `flash-attn`，因为官方音频 tokenizer 依赖 `flash_attn`，且该包需要在 torch 安装后使用 `--no-build-isolation` 安装。
+- 如果官方 MiMo 代码有额外依赖，需要同步补充到 `requirements.txt` 或 Dockerfile。
 
 ## 后续增强方向
 

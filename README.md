@@ -54,7 +54,7 @@ gradio==5.46.1
 zhon==2.1.1
 ```
 
-`requirements.txt` 已合入官方 MiMo-V2.5-ASR 的基础依赖，并保留服务所需的 `python-multipart`。镜像内还需要存在 `src.mimo_audio.mimo_audio` 可导入的官方源码。官方文档要求 Python 3.12、CUDA >= 12.0；如使用 `flash-attn`，建议按运行环境安装匹配 wheel。
+`requirements.txt` 已合入官方 MiMo-V2.5-ASR 的基础依赖，并保留服务所需的 `python-multipart`。镜像内还需要存在 `src.mimo_audio.mimo_audio` 可导入的官方源码。Dockerfile 会在安装基础依赖后，通过 `--no-build-isolation` 单独安装 `flash-attn`。官方文档要求 Python 3.12、CUDA >= 12.0；如果 flash-attn 构建失败，需要按运行环境安装匹配 wheel。
 
 ## 构建
 
