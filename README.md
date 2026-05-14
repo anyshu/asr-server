@@ -46,7 +46,7 @@ uvicorn[standard]>=0.35.0
 pydantic>=2.11.7
 python-multipart
 librosa>=0.11.0
-scipy>=1.16.1
+scipy>=1.15.3,<1.16
 triton==3.2.0
 soundfile
 numpy
