@@ -1,0 +1,15 @@
+services:
+  mimo-asr:
+    build: .
+    container_name: mimo-asr
+    ports:
+      - "8000:8000"
+    volumes:
+      - /mnt/data/models/MiMo-V2.5-ASR:/models/MiMo-V2.5-ASR
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
