@@ -37,17 +37,24 @@ mimo-asr-server/
 核心依赖在 `requirements.txt` 中：
 
 ```txt
-fastapi
-uvicorn[standard]
-pydantic
+accelerate>=1.9.0
+torch==2.6.0
+torchaudio==2.6.0
+transformers==4.49.0
+fastapi>=0.116.1
+uvicorn[standard]>=0.35.0
+pydantic>=2.11.7
 python-multipart
+librosa>=0.11.0
+scipy>=1.16.1
+triton==3.2.0
 soundfile
 numpy
-transformers
-torch
+gradio==5.46.1
+zhon==2.1.1
 ```
 
-如果接入官方 MiMo 代码，需要把官方推理依赖同步加入 `requirements.txt`。
+`requirements.txt` 已合入官方 MiMo-V2.5-ASR 的基础依赖，并保留服务所需的 `python-multipart`。镜像内还需要存在 `src.mimo_audio.mimo_audio` 可导入的官方源码。官方文档要求 Python 3.12、CUDA >= 12.0；如使用 `flash-attn`，建议按运行环境安装匹配 wheel。
 
 ## 构建
 
@@ -58,9 +65,12 @@ docker build -t mimo-asr-server .
 ## 启动
 
 ```bash
-docker run --gpus all -d \
-  -p 8000:8000 \
-  -v /mnt/data/models/MiMo-V2.5-ASR:/models/MiMo-V2.5-ASR \
+docker run --gpus '"device=3"' -d \
+  -p 28203:8000 \
+  -v /mnt/data/models/XiaomiMiMo/MiMo-V2.5-ASR:/models/MiMo-V2.5-ASR:ro \
+  -v /mnt/data/models/XiaomiMiMo/MiMo-Audio-Tokenizer:/models/MiMo-Audio-Tokenizer:ro \
+  -e MIMO_MODEL_PATH=/models/MiMo-V2.5-ASR \
+  -e MIMO_TOKENIZER_PATH=/models/MiMo-Audio-Tokenizer \
   --name mimo-asr \
   mimo-asr-server
 ```
@@ -136,13 +146,26 @@ print(resp.text)
 
 ## 模型接入说明
 
-`model.py` 当前是模型适配层，`_transcribe_one` 使用占位返回值。接入正式 MiMo 推理时，需要替换为官方模型加载和推理逻辑，例如：
+`model.py` 已接入官方 MiMo 推理入口，默认导入 `src.mimo_audio.mimo_audio.MimoAudio`，并调用 `asr_sft(wav_path)` 转写。
 
-```python
-# from src.mimo_audio.mimo_audio import MimoAudio
-# self.model = MimoAudio(model_path=model_path)
-# return self.model.asr_sft(wav_path)
-```
+默认路径：
+
+- 模型：`/models/MiMo-V2.5-ASR`
+- 音频 tokenizer：`/models/MiMo-Audio-Tokenizer`
+
+可通过环境变量覆盖：
+
+| 变量 | 默认值 | 说明 |
+| --- | --- | --- |
+| `MIMO_MODEL_PATH` | `/models/MiMo-V2.5-ASR` | MiMo-V2.5-ASR 权重目录 |
+| `MIMO_TOKENIZER_PATH` | `/models/MiMo-Audio-Tokenizer` | MiMo-Audio-Tokenizer 目录 |
+| `MIMO_SOURCE_PATH` | 空 | 官方源码路径，需包含 `src/` 包 |
+| `MIMO_AUDIO_TAG` | 空 | 如果官方 `asr_sft` 支持 `audio_tag` 参数，则自动传入 |
+| `ASR_MAX_BATCH_SIZE` | `16` | 最大动态 batch 大小 |
+| `ASR_MAX_WAIT_MS` | `50` | 动态 batch 最大等待毫秒数 |
+| `ASR_TMP_DIR` | `/tmp/mimo_asr` | 上传音频临时目录 |
+
+如果镜像内没有官方 MiMo 源码，服务启动时会报错提示安装源码或设置 `MIMO_SOURCE_PATH`，不会再返回占位文本。
 
 ## 预期性能
 

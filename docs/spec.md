@@ -44,7 +44,7 @@ Results
 
 - 作为 MiMo-V2.5-ASR 的模型适配层。
 - 通过单线程 `ThreadPoolExecutor` 执行同步推理，避免阻塞事件循环。
-- 当前 `_transcribe_one` 为占位实现，生产接入时需要替换为官方 MiMo 推理逻辑。
+- 默认导入官方 `src.mimo_audio.mimo_audio.MimoAudio`，调用 `asr_sft` 执行真实转写。
 
 ## 服务接口
 
@@ -118,15 +118,38 @@ print(resp.text)
 /models/MiMo-V2.5-ASR
 ```
 
-正式接入官方 MiMo 代码时，需要在 `MimoASRModel` 中替换模型加载和单文件推理逻辑：
+`MimoASRModel` 默认导入官方推理入口：
 
 ```python
-# from src.mimo_audio.mimo_audio import MimoAudio
-# self.model = MimoAudio(model_path=model_path)
-# return self.model.asr_sft(wav_path)
+from src.mimo_audio.mimo_audio import MimoAudio
 ```
 
+初始化时传入：
+
+- `model_path`
+- `tokenizer_path`
+
+单文件转写调用：
+
+```python
+self.model.asr_sft(wav_path)
+```
+
+如果官方 `asr_sft` 签名支持 `audio_tag`，服务会在配置 `MIMO_AUDIO_TAG` 后自动传入该参数。
+
 如果官方代码支持真实 GPU batch 推理，应优先在 `_transcribe_batch_sync` 中实现批量推理，而不是循环调用单文件推理。
+
+## 运行配置
+
+| 变量 | 默认值 | 说明 |
+| --- | --- | --- |
+| `MIMO_MODEL_PATH` | `/models/MiMo-V2.5-ASR` | MiMo-V2.5-ASR 权重目录 |
+| `MIMO_TOKENIZER_PATH` | `/models/MiMo-Audio-Tokenizer` | MiMo-Audio-Tokenizer 目录 |
+| `MIMO_SOURCE_PATH` | 空 | 官方源码路径，需包含 `src/` 包 |
+| `MIMO_AUDIO_TAG` | 空 | 可选音频标签参数 |
+| `ASR_MAX_BATCH_SIZE` | `16` | 最大动态 batch 大小 |
+| `ASR_MAX_WAIT_MS` | `50` | 动态 batch 最大等待毫秒数 |
+| `ASR_TMP_DIR` | `/tmp/mimo_asr` | 上传音频临时目录 |
 
 ## 部署
 
@@ -149,9 +172,12 @@ docker build -t mimo-asr-server .
 运行：
 
 ```bash
-docker run --gpus all -d \
-  -p 8000:8000 \
-  -v /mnt/data/models/MiMo-V2.5-ASR:/models/MiMo-V2.5-ASR \
+docker run --gpus '"device=3"' -d \
+  -p 28203:8000 \
+  -v /mnt/data/models/XiaomiMiMo/MiMo-V2.5-ASR:/models/MiMo-V2.5-ASR:ro \
+  -v /mnt/data/models/XiaomiMiMo/MiMo-Audio-Tokenizer:/models/MiMo-Audio-Tokenizer:ro \
+  -e MIMO_MODEL_PATH=/models/MiMo-V2.5-ASR \
+  -e MIMO_TOKENIZER_PATH=/models/MiMo-Audio-Tokenizer \
   --name mimo-asr \
   mimo-asr-server
 ```
@@ -180,9 +206,10 @@ docker run --gpus all -d \
 ## 运行约束
 
 - 运行环境需要 NVIDIA GPU 和可用的容器 GPU runtime。
-- 生产环境接入正式模型前，需要替换 `model.py` 中的占位转写逻辑。
+- 镜像内需要包含官方 MiMo 源码，或挂载源码目录并通过 `MIMO_SOURCE_PATH` 指向包含 `src/` 的路径。
+- 运行时需要同时提供 MiMo-V2.5-ASR 权重和 MiMo-Audio-Tokenizer。
 - 上传文件会临时写入 `/tmp/mimo_asr`，请求结束后删除。
-- 如果接入官方 MiMo 代码，需要同步补充官方依赖到 `requirements.txt`。
+- 如果官方 MiMo 代码有额外依赖，需要同步补充到 `requirements.txt`。
 
 ## 后续增强方向
 
